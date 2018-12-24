@@ -2,6 +2,8 @@ package ddos_datacenter;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
+import java.io.File;
+import java.io.PrintWriter;
 
 import java.lang.reflect.Type;
 import java.nio.file.Files;
@@ -12,28 +14,57 @@ import java.util.stream.Collectors;
 public class Main {
 
     public static void main(String[] args) throws Exception {
-        String json = Files.lines(Paths.get("input.json")).collect(Collectors.joining());
-        Type type = new TypeToken<Map<String, Map<String, Double>>>() {
-        }.getType();
+        int topNum = 4;
+        if (args.length > 0) {
+            topNum = Integer.parseInt(args[0]);
+        }
+        File f = new File("output_TOP_"+topNum+".txt");
+        if (f.exists()) {
+            f.delete();
+        }
+        PrintWriter pw = new PrintWriter(f);
 
-        Map<String, Map<String, Double>> CM;
+        boolean flag = true;
+        for (int i = 10; i < 500; i++) {
+            ArrayList<Double> Cost = new ArrayList<>();
+            for (int r = 0; r < 100; r++) {
 
-        // System.out.println(new Gson().toJson(result));
-        //   GraphGeneration.generate(3);
-        Graph g = new Graph(3);
-        g.ReadFile();
-        // g.Draw();
-        g.CalculateAllPairShortestPath();
-        //g.printDist();
-        //System.out.println("Path: " + g.getPath(10, 36));
-        g.costMatrix();
-        g.printCostMatrix();
-        CM = g.getCostMap();
-        System.out.println(CM);
+                Constants.FlowNum = i;
+                System.out.println("*************round:" + r + "***************");
+                Map<String, Map<String, Double>> CM;
 
-        Result result = new Main().apply(CM);
-        System.out.println(result.assignment);
-        System.out.println(result.weight);
+                Graph g = new Graph(topNum);
+                g.ReadFile();
+                if (flag) {
+                    //   GraphGeneration.generate(topNum);
+
+                    // g.Draw();
+                    flag = false;
+                }
+                g.flow_generation(Constants.FlowNum, Constants.FreeVMNum);
+                g.CalculateAllPairShortestPath();
+                //g.printDist();
+                //System.out.println("Path: " + g.getPath(10, 36));
+                g.costMatrix();
+                // g.printCostMatrix();
+                CM = g.getCostMap((int) Math.ceil(((double) g.Flows.size()) / g.FreeVMS.size()));
+                // System.out.println(CM);
+                //  System.out.println("VMS:" + g.VMS.size() + "-" + g.VMS);
+                // System.out.println("FreeVMS:" + g.FreeVMS.size() + "-" + g.FreeVMS);
+                Result result = new Main().apply(CM);
+                //System.out.println(result.assignment);
+                System.out.println(result.weight);
+                Cost.add(result.weight);
+            }
+
+            double avg = StatHelper.avg(Cost);
+            double std = StatHelper.std(Cost);
+
+            pw.println(avg + "\t" + std);
+            pw.flush();
+        }
+        pw.close();
+
     }
 
     public Result apply(Map<String, Map<String, Double>> input) throws Exception {
@@ -47,13 +78,16 @@ public class Main {
         // Get lists for indexing
         List<String> lhsNodesList = new ArrayList<>(lhsNodes);
         List<String> rhsNodesList = new ArrayList<>(rhsNodes);
-        
-        System.out.println("LHS: "+ lhsNodes);
-        System.out.println("RHS: "+ rhsNodes);
 
+        //   System.out.println("LHS: " + lhsNodes);
+        //   System.out.println("RHS: " + rhsNodes);
         // Calculate the weights matrix and run the Hungarian Algorithm
         double[][] weights = calculateWeights(input, lhsNodesList, rhsNodesList);
         int[] output = new HungarianAlgorithm(weights).execute();
+//        for (int o : output) {
+//            System.out.print(o + " ");
+//        }
+//        System.out.println("");
 
         // Parse the output
         Map<String, String> matches = getMatchPairs(output, lhsNodesList, rhsNodesList);
@@ -105,8 +139,9 @@ public class Main {
     private Map<String, String> getMatchPairs(int[] output, List<String> lhsNodesList, List<String> rhsNodesList) {
         Map<String, String> matches = new HashMap<>();
         int n = lhsNodesList.size();
-
         for (int i = 0; i < n; i++) {
+            // System.out.println(i);
+            //System.out.println(output[i]);
             matches.put(lhsNodesList.get(i), rhsNodesList.get(output[i]));
         }
 

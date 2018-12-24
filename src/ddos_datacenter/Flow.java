@@ -36,7 +36,7 @@ public class Flow {
 
     @Override
     public String toString() {
-        return ID + "";
+        return ID + "("+FROM+"=>"+TO+")";
     }
 
 }

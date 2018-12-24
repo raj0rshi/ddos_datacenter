@@ -1,8 +1,10 @@
 package ddos_datacenter;
 
+import static ddos_datacenter.Constants.DATARATES;
 import java.awt.Color;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -28,6 +30,8 @@ public class Graph {
     int[][] dist;
     int[][] cost;
     double[][] cost2;
+
+    int VM_CAP = 1;
 
     int eID = 0;
 
@@ -102,7 +106,7 @@ public class Graph {
             int y = Integer.parseInt(strtok.nextToken());
             String Type = strtok.nextToken();
 
-            System.out.println("ID:" + ID);
+            // System.out.println("ID:" + ID);
             Nodes.get(ID).x = x;
             Nodes.get(ID).y = y;
             Nodes.get(ID).Type = Type;
@@ -146,9 +150,9 @@ public class Graph {
 
     public void Draw() {
         ArrayList<Edge> x = new ArrayList<>(Edges.values());
-        System.out.println(VMS);
+        //   System.out.println(VMS);
         for (Flow f : Flows.values()) {
-            System.out.println("Flow:" + f.ID + "\t FROM:" + f.FROM + "\t TO:" + f.TO);
+            //       System.out.println("Flow:" + f.ID + "\t FROM:" + f.FROM + "\t TO:" + f.TO);
             Edge e = new Edge(VMS.get(f.FROM), VMS.get(f.TO), eID++);
             //   System.out.println(e.A);
             //   System.out.println(e.B);
@@ -330,11 +334,14 @@ public class Graph {
     public int[][] costMatrix() {
 
         cost = new int[Flows.size()][Nodes.size()];
+        //  System.out.println("Flows"+ Flows);
         for (int i = 0; i < Flows.size(); i++) {
 
             Flow F = Flows.get(i);
+
+            //   System.out.println("Getting path of  "+ F);
             ArrayList<Integer> path = getPath(F.FROM, F.TO);
-            System.out.println(i + "(" + F.Datarate + "): " + path);
+            //    System.out.println(i + "(" + F.Datarate + "): " + path);
             for (Node VM : FreeVMS.values()) {
                 int min_d = Integer.MAX_VALUE;
                 int min_SDN = 0;
@@ -355,10 +362,10 @@ public class Graph {
             }
         }
 
-        cost2=new double[cost.length][cost[0].length];
+        cost2 = new double[cost.length][cost[0].length];
         for (int i = 0; i < cost.length; i++) {
             for (int j = 0; j < cost[0].length; j++) {
-                cost2[i][j]=cost[i][j];
+                cost2[i][j] = cost[i][j];
             }
         }
         return cost;
@@ -413,6 +420,121 @@ public class Graph {
         }
 
         return map;
+    }
+
+    Map<String, Map<String, Double>> getCostMap(int X) {
+        Map<String, Map<String, Double>> map = new HashMap<String, Map<String, Double>>();
+
+        for (Flow F : Flows.values()) {
+            Map<String, Double> m = new HashMap<String, Double>();
+            map.put("F" + F.ID, m);
+        }
+        for (Node n : FreeVMS.values()) {
+            Map<String, Double> m = new HashMap<String, Double>();
+            for (int k = 0; k < X; k++) {
+                //  map.put("VM" + n.ID + "_" + k, m);
+            }
+        }
+
+        for (int i = 0; i < Flows.size(); ++i) {
+            Map<String, Double> Fm = map.get("F" + i);
+            Flow F = Flows.get(i);
+            for (int j = 0; j < Nodes.size(); ++j) {
+                if (FreeVMS.containsKey(j)) {
+
+                    Node VM = Nodes.get(j);
+                    for (int k = 0; k < X; k++) {
+                        //  Map<String, Double> VMm = map.get("VM" + j + "_" + k);
+                        // VMm.put("F" + F.ID, (double) cost[i][j]);
+                        Fm.put("VM" + VM.ID + "_" + k, (double) cost[i][j]);
+
+                    }
+
+                }
+            }
+            // System.out.println();
+
+        }
+
+        return map;
+    }
+
+    void flow_generation(int FlowNum, int FreeVMNum) throws FileNotFoundException {
+        ArrayList<Node> VMS = new ArrayList<>();
+
+        for (Node n : Nodes.values()) {
+            if (n.Type.equals("VM")) {
+                VMS.add(n);
+                //   System.out.println(n.Type);
+            }
+        }
+
+        ArrayList<Node> SelectedVMS = new ArrayList<>();
+
+        //  System.out.println("VMS:"+VMS.size());
+        while (VMS.size() > FreeVMNum) {
+            int index = ((int) (Math.random() * Integer.MAX_VALUE)) % VMS.size();
+            Node n = VMS.remove(index);
+            SelectedVMS.add(n);
+            // System.out.println("hii");
+        }
+        //  System.out.println(SelectedVMS.size());
+
+        ArrayList<Pair> Pairs = new ArrayList<>();
+        for (int i = 0; i < SelectedVMS.size(); i++) {
+            for (int j = i + 1; j < SelectedVMS.size(); j++) {
+                Pair p = new Pair();
+                p.A = i;
+                p.B = j;
+                Pairs.add(p);
+                //   System.out.println("pair: added "+ i+ "-"+j);
+            }
+        }
+
+        int fID = 0;
+        HashMap<String, Flow> flows = new HashMap<String, Flow>();
+        while (flows.size() < FlowNum) {
+
+            if (Pairs.size() == 0) {
+                break;
+            }
+            int index = (int) (Math.random() * Integer.MAX_VALUE) % Pairs.size();
+
+            Pair p = Pairs.get(index);
+            Pairs.remove(index);
+            Flow f = new Flow(fID++, SelectedVMS.get(p.A).ID, SelectedVMS.get(p.B).ID, getRandValue(DATARATES));
+
+            //  System.out.println("flow: added "+ f);
+            flows.put(f.ID + "", f);
+
+        }
+
+        FreeVMS.putAll(this.VMS);
+        Flows.clear();
+        for (Flow f : flows.values()) {
+            Flows.put(f.ID, f);
+            if (FreeVMS.containsKey(f.TO)) {
+                FreeVMS.remove(f.TO);
+            }
+            if (FreeVMS.containsKey(f.FROM)) {
+                FreeVMS.remove(f.FROM);
+            }
+        }
+        //System.out.println("After generation Flows: " + flows);
+        //System.out.println("After generation Flows: " + Flows);
+
+    }
+
+    static int getRandValue(int[] a) {
+        int x = (int) (Math.random() * Integer.MAX_VALUE);
+        x = x % a.length;
+        return a[x];
+    }
+
+    private class Pair {
+
+        int A;
+        int B;
     }
 
 }

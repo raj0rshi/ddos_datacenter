@@ -27,10 +27,10 @@ public class GraphGeneration {
     public static ArrayList<Edge> edges;
     public static final int W_H = (int) (500.0 / FACT);
     public static final int W_W = (int) (500.0 / FACT);
-    public static final int BLOCK_SIZE = 99;
+    public static final int BLOCK_SIZE = 100;
     public static int ID = 0;
     public static final int NODES_PER_BLOCK = 1;
-    public static final int NEIGHBOR_RAD = 170;
+    public static final int NEIGHBOR_RAD = 160;
 
     public static int MAX_X = 0;
     public static int MAX_Y = 0;
@@ -39,13 +39,13 @@ public class GraphGeneration {
     static int EID = 0;
 
     static int topNum = 1;
-    static int FlowNum = 10;
+    static int FlowNum = 5;
     static int FreeVMNum = 3;
 
     public static final double PM_PROB = .5;
 
     public static final int[] PM_NUMBERS = {1, 2,};
-    public static final int[] VM_NUMBERS = {3,};
+    public static final int[] VM_NUMBERS = {2,};
     public static final int[] DATARATES = {1, 2, 3, 4, 5, 6};
 
     public static void generate(int topnum) throws InterruptedException, IOException {
@@ -125,7 +125,7 @@ public class GraphGeneration {
 
                 int numPms = getRandValue(PM_NUMBERS);
                 for (int i = 0; i < numPms; i++) {
-                    Node PM = new Node(N++, n.x + i * 15 - numPms * 15 / 2, n.y + 20+3*i*i);
+                    Node PM = new Node(N++, n.x + i * 18 - numPms * 15 / 2, n.y + 20+15*i*i);
                     PM.Type = "PM";
                     n.addNeighbor(PM);
                     Edge e = new Edge(PM, n, EID++);
@@ -133,7 +133,7 @@ public class GraphGeneration {
                     Nodes.add(PM);
                     int numVms = getRandValue(VM_NUMBERS);
                     for (int j = 0; j < numVms; j++) {
-                        Node VM = new Node(N++, PM.x + j * 15 - numVms * 15 / 2, PM.y + 20+3*j*j);
+                        Node VM = new Node(N++, PM.x + j * 15 - numVms * 15 / 2, PM.y + 20+4*j*j);
                         VM.Type = "VM";
                         PM.addNeighbor(VM);
                         Nodes.add(VM);
@@ -172,11 +172,11 @@ public class GraphGeneration {
             int B = (int) (Math.random() * Integer.MAX_VALUE) % SelectedVMS.size();
             Flow f = new Flow(SelectedVMS.get(A).ID, SelectedVMS.get(B).ID, getRandValue(DATARATES));
 
-            if ((A == B)||(flows.containsKey(A+"-"+B))||(flows.containsKey(B+"-"+A))) {
+            if ((A == B)||(flows.containsKey(A+"_"+B))||(flows.containsKey(B+"_"+A))) {
                 continue;
             }
 
-            String key=SelectedVMS.get(A).ID+"_"+SelectedVMS.get(B).ID;
+            String key=A+"_"+B;
             flows.put(key, f);
             System.out.println("flow added: " +key);
         }

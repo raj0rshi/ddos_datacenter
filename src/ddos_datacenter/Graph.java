@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Scanner;
 import java.util.StringTokenizer;
 
@@ -20,11 +21,13 @@ public class Graph {
     HashMap<Integer, Edge> Edges;
 
     HashMap<Integer, Node> VMS;
+    HashMap<Integer, Node> FreeVMS;
     HashMap<Integer, Node> PMS;
     HashMap<Integer, Node> SDNS;
     HashMap<Integer, Flow> Flows;
     int[][] dist;
     int[][] cost;
+    double[][] cost2;
 
     int eID = 0;
 
@@ -41,6 +44,7 @@ public class Graph {
         Nodes = new HashMap<>();
         Edges = new HashMap<>();
         VMS = new HashMap<>();
+        FreeVMS = new HashMap<>();
         PMS = new HashMap<>();
         SDNS = new HashMap<>();
         Flows = new HashMap<>();
@@ -98,7 +102,7 @@ public class Graph {
             int y = Integer.parseInt(strtok.nextToken());
             String Type = strtok.nextToken();
 
-            //    System.out.println("ID:" + ID);
+            System.out.println("ID:" + ID);
             Nodes.get(ID).x = x;
             Nodes.get(ID).y = y;
             Nodes.get(ID).Type = Type;
@@ -118,6 +122,7 @@ public class Graph {
         scn = new Scanner(new File(Constants.TOPOLOGY_FILE_FLOWS));
         // System.out.println(Nodes.keySet());
 
+        FreeVMS.putAll(VMS);
         int fID = 0;
         while (scn.hasNext()) {
             String line = scn.nextLine();
@@ -126,6 +131,13 @@ public class Graph {
             int A = Integer.parseInt(strtok.nextToken());
             int B = Integer.parseInt(strtok.nextToken());
             int DR = Integer.parseInt(strtok.nextToken());
+
+            if (FreeVMS.containsKey(A)) {
+                FreeVMS.remove(A);
+            }
+            if (FreeVMS.containsKey(B)) {
+                FreeVMS.remove(B);
+            }
 
             Flow flw = new Flow(fID, A, B, DR);
             Flows.put(fID++, flw);
@@ -317,6 +329,90 @@ public class Graph {
 
     public int[][] costMatrix() {
 
+        cost = new int[Flows.size()][Nodes.size()];
+        for (int i = 0; i < Flows.size(); i++) {
+
+            Flow F = Flows.get(i);
+            ArrayList<Integer> path = getPath(F.FROM, F.TO);
+            System.out.println(i + "(" + F.Datarate + "): " + path);
+            for (Node VM : FreeVMS.values()) {
+                int min_d = Integer.MAX_VALUE;
+                int min_SDN = 0;
+                for (int SDN : path) {
+                    if (dist[SDN][VM.ID] < min_d) {
+                        min_d = dist[SDN][VM.ID];
+                        min_SDN = SDN;
+                    }
+                }
+
+                Node CPF = Nodes.get(min_SDN);
+                if (CPF.Type.equals("R") || CPF.Type.equals("PM")) {
+                    min_d = min_d - 1;
+                } else {
+                    min_d = min_d - 2;
+                }
+                cost[i][VM.ID] = (min_d) * F.Datarate;
+            }
+        }
+
+        cost2=new double[cost.length][cost[0].length];
+        for (int i = 0; i < cost.length; i++) {
+            for (int j = 0; j < cost[0].length; j++) {
+                cost2[i][j]=cost[i][j];
+            }
+        }
         return cost;
     }
+
+    void printCostMatrix() {
+        System.out.println("The following matrix shows the cost matrix");
+
+        for (int i = 0; i < Flows.size(); ++i) {
+
+            for (int j = 0; j < Nodes.size(); ++j) {
+
+                if (FreeVMS.containsKey(j)) {
+                    if (cost[i][j] == INF) {
+                        System.out.print("INF ");
+                    } else {
+                        String x = "(" + i + "," + j + ")" + cost[i][j];
+                        System.out.print(x + "          ".substring(0, 10 - x.length()));
+                    }
+                }
+            }
+            System.out.println();
+        }
+    }
+
+    Map<String, Map<String, Double>> getCostMap() {
+        Map<String, Map<String, Double>> map = new HashMap<String, Map<String, Double>>();
+
+        for (Flow F : Flows.values()) {
+            Map<String, Double> m = new HashMap<String, Double>();
+            map.put("F" + F.ID, m);
+        }
+        for (Node n : FreeVMS.values()) {
+            Map<String, Double> m = new HashMap<String, Double>();
+            map.put("VM" + n.ID, m);
+        }
+
+        for (int i = 0; i < Flows.size(); ++i) {
+            Map<String, Double> Fm = map.get("F" + i);
+            Flow F = Flows.get(i);
+            for (int j = 0; j < Nodes.size(); ++j) {
+                if (FreeVMS.containsKey(j)) {
+                    Map<String, Double> VMm = map.get("VM" + j);
+                    Node VM = Nodes.get(j);
+                    Fm.put("VM" + VM.ID, (double) cost[i][j]);
+                    VMm.put("F" + F.ID, (double) cost[i][j]);
+
+                }
+            }
+            // System.out.println();
+
+        }
+
+        return map;
+    }
+
 }

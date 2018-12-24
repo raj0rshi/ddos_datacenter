@@ -16,20 +16,24 @@ public class Main {
         Type type = new TypeToken<Map<String, Map<String, Double>>>() {
         }.getType();
 
-        Map<String, Map<String, Double>> CM = new Gson().fromJson(json, type);
+        Map<String, Map<String, Double>> CM;
 
-        System.out.println(CM);
-        Result result = new Main().apply(CM);
         // System.out.println(new Gson().toJson(result));
-
-      //  GraphGeneration.generate(2);
-        Graph g = new Graph(2);
+        //   GraphGeneration.generate(3);
+        Graph g = new Graph(3);
         g.ReadFile();
-        g.Draw();
+        // g.Draw();
         g.CalculateAllPairShortestPath();
-      // g.printDist();
-       // System.out.println("Path: "+g.getPath(10,36));
-        
+        //g.printDist();
+        //System.out.println("Path: " + g.getPath(10, 36));
+        g.costMatrix();
+        g.printCostMatrix();
+        CM = g.getCostMap();
+        System.out.println(CM);
+
+        Result result = new Main().apply(CM);
+        System.out.println(result.assignment);
+        System.out.println(result.weight);
     }
 
     public Result apply(Map<String, Map<String, Double>> input) throws Exception {
@@ -43,6 +47,9 @@ public class Main {
         // Get lists for indexing
         List<String> lhsNodesList = new ArrayList<>(lhsNodes);
         List<String> rhsNodesList = new ArrayList<>(rhsNodes);
+        
+        System.out.println("LHS: "+ lhsNodes);
+        System.out.println("RHS: "+ rhsNodes);
 
         // Calculate the weights matrix and run the Hungarian Algorithm
         double[][] weights = calculateWeights(input, lhsNodesList, rhsNodesList);
@@ -65,12 +72,12 @@ public class Main {
         }));
     }
 
-    private double[][] calculateWeights(Map<String, Map<String, Double>> input,
-            List<String> lhsNodesList, List<String> rhsNodesList) {
-        int n = lhsNodesList.size();
-        double[][] weights = new double[n][n];
+    private double[][] calculateWeights(Map<String, Map<String, Double>> input, List<String> lhsNodesList, List<String> rhsNodesList) {
+        int m = lhsNodesList.size();
+        int n = rhsNodesList.size();
+        double[][] weights = new double[m][n];
 
-        for (int i = 0; i < n; i++) {
+        for (int i = 0; i < m; i++) {
             String node1 = lhsNodesList.get(i);
             Map<String, Double> edges = input.get(node1);
 

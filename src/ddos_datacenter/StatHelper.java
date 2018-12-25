@@ -6,6 +6,13 @@
 package ddos_datacenter;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  *
@@ -49,6 +56,26 @@ public class StatHelper {
             sum += (avg - d) * (avg - d);
         }
         return Math.sqrt(sum / A.size());
+    }
+
+    static Map<String, Double> sort(Map<String, Double> unsortedMap) {
+        //convert map to a List
+        List<Entry<String, Double>> list = new LinkedList<Map.Entry<String, Double>>(unsortedMap.entrySet());
+
+        //sorting the list with a comparator
+        Collections.sort(list, new Comparator<Entry<String, Double>>() {
+            public int compare(Map.Entry<String, Double> o1, Map.Entry<String, Double> o2) {
+                return (o1.getValue()).compareTo(o2.getValue());
+            }
+        });
+
+        //convert sortedMap back to Map
+        Map<String, Double> sortedMap = new LinkedHashMap<String, Double>();
+        for (Entry<String, Double> entry : list) {
+            sortedMap.put(entry.getKey(), entry.getValue());
+        }
+
+        return sortedMap;
     }
 
 }

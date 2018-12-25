@@ -1,45 +1,90 @@
 package ddos_datacenter;
 
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.PrintWriter;
 
-import java.lang.reflect.Type;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class Main {
 
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args) throws FileNotFoundException, Exception {
+
+        int budget = 2;
+        int topNum = 5;
+        if (args.length > 0) {
+            topNum = Integer.parseInt(args[0]);
+        }
+        Graph g = new Graph(topNum);
+        g.ReadFile();
+        g.CalculateAllPairShortestPath();
+        g.costMatrix();
+
+        int x = (int) Math.ceil(g.totalFlows() / (double) budget);
+        Map<String, Map<String, Double>> CM = g.getCostMap(x);
+
+        HashMap<Integer, Node> SelectedVMS = new HashMap<>();
+        for (int i = 0; i < budget; i++) {
+            Node VM = (Node) g.FreeVMS.values().toArray()[i];
+            SelectedVMS.put(VM.ID, VM);
+
+        }
+        // System.out.println("Selected VM: " + SelectedVMS);
+
+        Map<String, Map<String, Double>> CMF = g.costMapFilter(SelectedVMS, CM);
+        System.out.println("CM: " + CM);
+        // System.out.println("CMF: " + CMF);
+        Result result = new Main().apply(CMF);
+        System.out.println(result.assignment);
+        System.out.println(result.weight);
+
+        Result result_op = Combination.OptimalCost(CM, g.FreeVMS, budget);
+        System.out.println("OP: " + result_op.assignment);
+        System.out.println("OP: " + result_op.weight);
+
+        Result result_kmnn = KMNNCost(g, budget);
+        System.out.println("KMNN: " + result_kmnn.assignment);
+        System.out.println("KMNN: " + result_kmnn.weight);
+    }
+
+    public static void main2(String[] args) throws Exception {
         int topNum = 4;
         if (args.length > 0) {
             topNum = Integer.parseInt(args[0]);
         }
-        File f = new File("output_TOP_"+topNum+".txt");
+        File f = new File("output_TREE_DEGREE_" + topNum + ".txt");
         if (f.exists()) {
             f.delete();
         }
         PrintWriter pw = new PrintWriter(f);
 
         boolean flag = true;
-        for (int i = 10; i < 500; i++) {
+        for (int i = 10; i <= 100; i += 10) {
             ArrayList<Double> Cost = new ArrayList<>();
+            ArrayList<Double> BW = new ArrayList<>();
+            ArrayList<Double> FL_COUNT = new ArrayList<>();
             for (int r = 0; r < 100; r++) {
 
-                Constants.FlowNum = i;
-                System.out.println("*************round:" + r + "***************");
+                System.out.print("*");
                 Map<String, Map<String, Double>> CM;
 
                 Graph g = new Graph(topNum);
-                g.ReadFile();
+                g.generateTree(i, topNum);
+                BW.add((double) g.totalBW());
+                FL_COUNT.add((double) g.Flows.size());
+
+//                System.out.println("Nodes:" + g.Nodes);
+//                System.out.println("Edes:" + g.Edges);
+//
+//                System.out.println("VMS:" + g.VMS);
+//                System.out.println("FreeVMS:" + g.FreeVMS);
+//                System.out.println("Flows:" + g.Flows);
                 if (flag) {
                     //   GraphGeneration.generate(topNum);
 
-                    // g.Draw();
+                    //    g.Draw();
                     flag = false;
+
                 }
                 g.flow_generation(Constants.FlowNum, Constants.FreeVMNum);
                 g.CalculateAllPairShortestPath();
@@ -52,15 +97,19 @@ public class Main {
                 //  System.out.println("VMS:" + g.VMS.size() + "-" + g.VMS);
                 // System.out.println("FreeVMS:" + g.FreeVMS.size() + "-" + g.FreeVMS);
                 Result result = new Main().apply(CM);
-                //System.out.println(result.assignment);
-                System.out.println(result.weight);
+                // System.out.println(result.assignment);
+                //  System.out.println(result.weight);
                 Cost.add(result.weight);
+
             }
 
-            double avg = StatHelper.avg(Cost);
-            double std = StatHelper.std(Cost);
+            double avgC = StatHelper.avg(Cost);
+            double stdC = StatHelper.std(Cost);
+            double avgBW = StatHelper.avg(BW);
+            double avgFlows = StatHelper.avg(FL_COUNT);
+            System.out.println("\n" + i + " " + avgC);
 
-            pw.println(avg + "\t" + std);
+            pw.println(i + "\t" + avgC + "\t" + stdC + "\t" + avgBW + "\t" + avgFlows);
             pw.flush();
         }
         pw.close();
@@ -158,6 +207,68 @@ public class Main {
             this.weight = weight;
         }
 
+    }
+
+    private static Result KMNNCost(Graph g, int budget) throws Exception {
+
+        int k = (int) Math.ceil(g.Flows.size() / (double) budget);
+        Map<String, Map<String, Double>> CM = g.getCostMap(1);
+        HashMap<String, ArrayList<Double>> CMT = new HashMap<>();
+        for (Map<String, Double> M : CM.values()) {
+            for (String key : M.keySet()) {
+                double val = M.get(key);
+                if (CMT.containsKey(key)) {
+                    ArrayList<Double> AL = CMT.get(key);
+                    AL.add(val);
+                } else {
+                    ArrayList<Double> AL = new ArrayList<>();
+                    AL.add(val);
+                    CMT.put(key, AL);
+
+                }
+            }
+
+        }
+        // System.out.println("CMT:" + CMT);
+
+        HashMap<String, Double> MKCOST = new HashMap<>();
+
+        for (String key : CMT.keySet()) {
+            ArrayList<Double> AL = CMT.get(key);
+
+            double sum = 0;
+            for (int i = 0; i < k; i++) {
+                double min = Collections.min(AL);
+                int min_i = AL.indexOf(min);
+                AL.remove(min_i);
+                sum += min;
+            }
+            MKCOST.put(key, sum);
+        }
+
+        Map<String, Double> MKCOST_SORTED = StatHelper.sort(MKCOST);
+        // System.out.println("SORTED_ MKCOST: " + MKCOST_SORTED);
+
+        HashMap<Integer, Node> SelectedVMs = new HashMap<>();
+        for (String key : MKCOST_SORTED.keySet()) {
+            // System.out.println(key + MKCOST_SORTED.get(key));
+            String ID = key.substring(0, key.indexOf("_"));
+            ID = ID.replace("VM", "");
+            int id = Integer.parseInt(ID);
+            SelectedVMs.put(id, g.FreeVMS.get(id));
+            if (SelectedVMs.size() == budget) {
+                break;
+            }
+
+        }
+
+        Map<String, Map<String, Double>> CMF = Graph.costMapFilter(SelectedVMs, g.getCostMap(k));
+        //System.out.println("SELECTED VMS: "+ CMF);
+        return new Main().apply(CMF);
+    }
+
+    private static Result GreedyCost(Graph g, int budget) {
+        return null;
     }
 
 }

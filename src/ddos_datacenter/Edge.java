@@ -28,7 +28,7 @@ public class Edge {
 
     @Override
     public String toString() {
-        return ID + "";
+        return ID + "("+A+"-"+B+")";
     }
 
     void setDirection(Node N) {

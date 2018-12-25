@@ -16,14 +16,14 @@ public class Constants {
     static String TOPOLOGY_FILE_NODES = "F:\\OneDrive - Temple University\\NetBeansProjects\\DDOS_DATACENTER\\topologies\\nodes_" + topNum + ".txt";
     static String TOPOLOGY_FILE_FLOWS = "F:\\OneDrive - Temple University\\NetBeansProjects\\DDOS_DATACENTER\\topologies\\flows_" + topNum + ".txt";
 
-    public static final double PM_PROB = .5;
+    public static final double PM_PROB = 2;
 
-    public static final int[] PM_NUMBERS = {1,2,3,};
-    public static final int[] VM_NUMBERS = {1,2,3, 4,5,6,7};
+    public static final int[] PM_NUMBERS = {3};
+    public static final int[] VM_NUMBERS = {5};
     public static final int[] DATARATES = {1, 2, 3, 4, 5, 6};
 
-    public static int FlowNum = 15;
-    public static int FreeVMNum = 5;
+    public static int FlowNum = 400;
+    public static int FreeVMNum = 20;
     public static int VM_CAP = 10;
 
 }

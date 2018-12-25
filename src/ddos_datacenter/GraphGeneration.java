@@ -51,6 +51,8 @@ public class GraphGeneration {
         main(null);
     }
 
+  
+
     public static void main(String[] args) throws InterruptedException, FileNotFoundException, IOException {
         // TODO code application logic here
 

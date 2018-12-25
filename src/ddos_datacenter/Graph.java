@@ -1,10 +1,13 @@
 package ddos_datacenter;
 
 import static ddos_datacenter.Constants.DATARATES;
+import static ddos_datacenter.Constants.PM_NUMBERS;
+import static ddos_datacenter.Constants.PM_PROB;
+import static ddos_datacenter.Constants.VM_NUMBERS;
 import java.awt.Color;
 import java.io.File;
 import java.io.FileNotFoundException;
-import java.io.PrintWriter;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
@@ -537,4 +540,120 @@ public class Graph {
         int B;
     }
 
+    public void generateTree(int N, int degree) throws IOException {
+        ArrayList<Node> nodes = new ArrayList< Node>();
+        ArrayList<Node> nodes2 = new ArrayList< Node>();
+        HashMap<Integer, Node> leafs = new HashMap<>();
+        for (int i = 0; i < N; i++) {
+            Node I = new Node(i);
+            I.Type = "R";
+            nodes.add(I);
+            nodes2.add(I);
+            leafs.put(i, I);
+
+            this.Nodes.put(i, I);
+        }
+
+        //  System.out.println("This nodes:" + Nodes);
+        ArrayList<Node> Branches = new ArrayList< Node>();
+        Branches.add(nodes.get(0));
+        Node root = nodes.remove(0);
+        root.x = 200;
+        root.y = 50;
+        int eID = 0;
+        while (!nodes.isEmpty()) {
+            Node n = nodes.remove(0);
+            //System.out.println(Branches.size());
+            int rand_parent = (int) (Math.random() * Branches.size() * 100) % Branches.size();
+            //System.out.println(rand_parent);
+            Node p = Branches.get(rand_parent);
+
+            leafs.remove(p.ID);
+            n.x = p.x + p.Neighbors.size() * p.Neighbors.size() * 20;
+            n.y = p.y + 30;
+
+            if (p.Neighbors.size() < degree) {
+                p.addNeighbor(n);
+                Branches.add(n);
+                Edge e = new Edge(p, n, eID);
+                this.Edges.put(eID++, e);
+            } else {
+                Branches.remove(rand_parent);
+                nodes.add(n);
+            }
+
+        }
+
+        //  System.out.println("This nodes:" + Nodes);
+        for (Node n : leafs.values()) {
+            if (Math.random() < PM_PROB) {
+                int numPms = getRandValue(PM_NUMBERS);
+                for (int i = 0; i < numPms; i++) {
+                    Node PM = new Node(N++, n.x + i * 18 - numPms * 15 / 2, n.y + 20 + 15 * i * i);
+                    PM.Type = "PM";
+                    PM.color = Color.BLUE;
+                    n.addNeighbor(PM);
+                    Edge e = new Edge(PM, n, eID++);
+                    this.Edges.put(e.ID, e);
+                    this.Nodes.put(PM.ID, PM);
+                    this.PMS.put(PM.ID, PM);
+
+                    // System.out.println("PM+" + PM);
+                    int numVms = getRandValue(VM_NUMBERS);
+                    for (int j = 0; j < numVms; j++) {
+                        Node VM = new Node(N++, PM.x + j * 15 - numVms * 15 / 2, PM.y + 20 + 4 * j * j);
+                        VM.Type = "VM";
+                        VM.color = Color.GREEN;
+                        PM.addNeighbor(VM);
+                        this.Nodes.put(VM.ID, VM);
+                        this.VMS.put(VM.ID, VM);
+
+                        //    System.out.println("VM+" + VM);
+                        Edge ee = new Edge(PM, VM, eID++);
+                        this.Edges.put(ee.ID, ee);
+                    }
+                }
+            }
+        }
+
+        //  System.out.println("This nodes:" + Nodes);
+        flow_generation(Constants.FlowNum, Constants.FreeVMNum);
+
+    }
+
+    int totalBW() {
+        int sum = 0;
+        for (Flow f : Flows.values()) {
+            sum += f.Datarate;
+        }
+        return sum;
+    }
+
+    int totalFlows() {
+
+        return Flows.size();
+    }
+
+    static Map<String, Map<String, Double>> costMapFilter(HashMap<Integer, Node> SelectedVMS, Map<String, Map<String, Double>> MAP) {
+        Map<String, Map<String, Double>> map = new HashMap<String, Map<String, Double>>();
+        for (String key : MAP.keySet()) {
+            Map<String, Double> m = MAP.get(key);
+            map.put(key, new HashMap<String, Double>(m));
+        }
+
+        for (Map<String, Double> m : map.values()) {
+            ArrayList<String> COLS = new ArrayList<>(m.keySet());
+            for (String VM_K : COLS) {
+                String VM = VM_K.substring(0, VM_K.indexOf("_"));
+
+                VM = VM.replace("VM", "");
+                //  System.out.println("VM_ID: "+VM);
+                if (!SelectedVMS.containsKey(Integer.parseInt(VM))) {
+                    m.remove(VM_K);
+                }
+            }
+        }
+
+        return map;
+    }
 }

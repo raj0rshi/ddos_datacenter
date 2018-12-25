@@ -37,7 +37,7 @@ public class GraphDraw extends JFrame {
             Node xx = e.A;
             Node yy = e.B;
           //  System.out.println("xx "+ xx);
-          //  System.out.println("yy "+ yy);
+            //System.out.println("yy "+ yy);
 
             g2.setStroke(new BasicStroke(2));
             if (e.color.getRGB() != Color.white.getRGB()) {
